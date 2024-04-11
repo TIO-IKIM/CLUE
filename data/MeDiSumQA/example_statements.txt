@@ -1,0 +1,14 @@
+Statements:
+- The patient was admitted to the hospital due to progressive swelling in the legs and abdomen.
+- The cause of the symptoms was identified as cirrhosis, likely due to long-term alcohol use.
+- The patient underwent an MR, which demonstrated no blood clots in the liver.
+- Blood work did not identify an autoimmune cause for the cirrhosis.
+- An echocardiogram showed some trace fluid surrounding the heart, which was otherwise functioning normally.
+- The patient was treated with multiple diuretics to remove excess fluid from the body and decrease leg swelling.
+- The patient underwent a paracentesis procedure to remove fluid from the abdomen.
+- After several days of diuresis with IV medications, the patient was changed to an oral dose of diuretics.
+- The patient initially had a very high white blood cell count upon admission.
+- The patient was evaluated for a source of infection but no cause was identified.
+- The patient was treated with a week of IV antibiotics, yet the white blood cell count remained elevated.
+- The patient's thyroid levels were very low, and thyroid medications were increased to address potential contribution to edema symptoms.
+- A small mass likely to be a benign growth called an IPMN was observed on the MRI.
