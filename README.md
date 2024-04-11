@@ -32,7 +32,7 @@ pip install git+https://github.com/dadaamin/bert_score.git```
 The following commands are generating the MeDiSumQA dataset:
 
 
-We provide a [1-shot-example](data/MeDiSumQA/example_summary.txt) for the statement extraction prompt. To retrieve the corresponding discharge letter run:
+We provide a [1-shot-example](data/MeDiSumQA/example_statements.txt) for the statement extraction prompt. To retrieve the corresponding discharge letter run:
 ```bash
 python3 data/MeDiSumQA/get_example.py --mimic_discharge_notes <path-to-mimic-notes>
 ```
