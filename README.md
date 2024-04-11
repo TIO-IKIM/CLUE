@@ -13,7 +13,6 @@ CLUE is a benchmark to evaluate the clinical language understanding of LLMS. It 
 - [Results](#results)
 - [Acknowledgement](#acknowledgement)
 - [Citation](#citation)
-- [Model Description](#model-description)
 
 ## Motivation
 
