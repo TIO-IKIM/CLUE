@@ -18,3 +18,8 @@ if [ ! -f data/MeQSum/MeQSum_ACL2019_BenAbacha_Demner-Fushman.xlsx ]; then
     mkdir data/MeQSum
     wget -P data/MeQSum https://github.com/abachaa/MeQSum/blob/master/MeQSum_ACL2019_BenAbacha_Demner-Fushman.xlsx
 fi
+
+if [! -f data/LongHealth/benchmark_v5.json]; then
+    mkdir data/LongHealth
+    wget -P data/Longhealth https://github.com/kbressem/LongHealth/blob/main/data/benchmark_v5.json
+fi
