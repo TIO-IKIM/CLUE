@@ -193,67 +193,15 @@ To run the entire benchmark for a Hugging Face model running locally execute:
 
 ## Acknowledgement
 
-This benchmark was made possible by the provision of various datasets. If you use CLUE, please cite the following works:
+This benchmark was made possible by the provision of multiple datasets:
 
-```bibtex
-@inproceedings{romanov-shivade-2018-lessons,
-    title = "Lessons from Natural Language Inference in the Clinical Domain",
-    author = "Romanov, Alexey  and
-      Shivade, Chaitanya",
-    editor = "Riloff, Ellen  and
-      Chiang, David  and
-      Hockenmaier, Julia  and
-      Tsujii, Jun{'}ichi",
-    booktitle = "Proceedings of the 2018 Conference on Empirical Methods in Natural Language Processing",
-    month = oct # "-" # nov,
-    year = "2018",
-    address = "Brussels, Belgium",
-    publisher = "Association for Computational Linguistics",
-    url = "https://aclanthology.org/D18-1187",
-    doi = "10.18653/v1/D18-1187",
-    pages = "1586--1596",
-}
-```
-
-```bibtex
-@Inproceedings{MeQSum,
-author = {Asma {Ben Abacha} and Dina Demner-Fushman},
-title = {On the Summarization of Consumer Health Questions},
-booktitle = {Proceedings of the 57th Annual Meeting of the Association for Computational Linguistics, ACL 2019, Florence, Italy, July 28th - August 2},
-year = {2019}}
-```
-
-```bibtex
-@inproceedings{gao-etal-2023-overview,
-    title = "Overview of the Problem List Summarization ({P}rob{S}um) 2023 Shared Task on Summarizing Patients{'} Active Diagnoses and Problems from Electronic Health Record Progress Notes",
-    author = "Gao, Yanjun  and
-      Dligach, Dmitriy  and
-      Miller, Timothy  and
-      Afshar, Majid",
-    editor = "Demner-fushman, Dina  and
-      Ananiadou, Sophia  and
-      Cohen, Kevin",
-    booktitle = "The 22nd Workshop on Biomedical Natural Language Processing and BioNLP Shared Tasks",
-    month = jul,
-    year = "2023",
-    address = "Toronto, Canada",
-    publisher = "Association for Computational Linguistics",
-    url = "https://aclanthology.org/2023.bionlp-1.43",
-    doi = "10.18653/v1/2023.bionlp-1.43",
-    pages = "461--467",
-}
-```
-
-```bibtex
-@misc{adams2024longhealth,
-      title={LongHealth: A Question Answering Benchmark with Long Clinical Documents}, 
-      author={Lisa Adams and Felix Busch and Tianyu Han and Jean-Baptiste Excoffier and Matthieu Ortala and Alexander Löser and Hugo JWL. Aerts and Jakob Nikolas Kather and Daniel Truhn and Keno Bressem},
-      year={2024},
-      eprint={2401.14490},
-      archivePrefix={arXiv},
-      primaryClass={cs.CL}
-}
-```
+- [MedNLI](https://jgc128.github.io/mednli/)
+- [MeQSum](https://github.com/abachaa/MeQSum)
+- [Problem List Summarization](https://physionet.org/content/bionlp-workshop-2023-task-1a/2.0.0/)
+- [LongHealth](https://github.com/kbressem/LongHealth)
+- [MIMIC IV](https://physionet.org/content/mimiciv/2.2/)
+  
+We sincerely thank the respective authors for allowing us this opportunity.
 
 ## Citation
 
