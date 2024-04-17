@@ -4,10 +4,13 @@ import json
 import tqdm
 import random
 import numpy
+import re
 
 from transformers import AutoTokenizer
 from huggingface_hub import InferenceClient
 from pathlib import Path
+
+from utils import build_model_input
 
 sys_prompt = """
 You are a highly skilled and detail-oriented assistant, specifically trained to assist medical professionals in interpreting and extracting key information from medical documents. Your primary responsibility will be to analyze discharge letters from hospitals. When you receive one or more of these letters, you will be expected to carefully review the contents and accurately answer multiple-choice questions related to these documents. 
@@ -39,6 +42,23 @@ Please answer using the following format:
 For example, if the correct answer to a question is option C, and the text for C is 'Acute Bronchitis', your answer should be: 
 'The correct answer is C: Acute bronchitis.'
 """
+
+def compute_metrics(model_prediction, question):
+    for answer in question:
+        if not answer.startswith("answer") or answer.endswith("location"):
+            continue
+        if question["correct"] in question[answer]:
+            correct_answer = answer[-1].upper()
+
+    model_choice = re.findall(r"The correct answer is: (\w):", model_prediction)
+
+    # Accuracy
+    if model_choice == []: 
+        return False, correct_answer
+    if model_choice[0] != model_choice:
+        return False, correct_answer
+    else:
+        return True, correct_answer
 
 def create_prompt(
     answer_docs: dict,
@@ -148,6 +168,18 @@ def create_prompt(
     )
     return prompt, answer_location
 
+def sample_distractions(patien_id: str, benchmark: dict, n: int = 4):
+    """samples `n` texts from the benchmark, that are not from patient with `patient_id`"""
+
+    all_texts = [
+        text
+        for pid, patients in benchmark.items()
+        if pid != patien_id
+        for text in patients["texts"].values()
+    ]
+    sampled_texts = random.sample(all_texts, min(n, len(all_texts)))
+    return sampled_texts
+
 def main():
 
     argument_parser = argparse.ArgumentParser()
@@ -182,10 +214,13 @@ def main():
     # contexts which don't allow for few shot
     
     # TASK 1
-    eval_results = {}
+    eval_results_task_1 = {}
+    save_task_1 = []
+    correct = 0
+    counted = 0
     for idx, patient in tqdm.tqdm(data.items(), position=0):
         patient_results = {}
-        if idx in eval_results.keys():
+        if idx in eval_results_task_1.keys():
             continue
         for i, question in tqdm.tqdm(
             enumerate(patient["questions"]),
@@ -216,7 +251,126 @@ def main():
                     tokenizer=tokenizer,
                 )
 
-                print(prompt)
+                if args.model_is_instruct:
+                    if tokenizer.use_default_system_prompt:
+                        model_input = tokenizer.apply_chat_template(
+                            [{"role" : "user", "content" : sys_prompt+prompt}],
+                            tokenize = False, add_generation_prompt=True
+                        )
+                    else:
+                        model_input = tokenizer.apply_chat_template(
+                            [{"role" : "system", "content" : sys_prompt}, {"role" : "user", "content" : prompt}],
+                            tokenize= False, add_generation_prompt=True
+                        )
+                else:
+                    model_input = sys_prompt+"\n\n\n"+prompt
+
+                output = inference_client.text_generation(
+                    model_input,
+                    max_new_tokens=50,
+                    stream=False,
+                    details=False
+                )
+
+                result, correct_answer = compute_metrics(output, question)
+
+                if result:
+                    correct += 1
+                counted += 1
+
+                save_task_1.append({"correct" : correct_answer, "prediction" : output, "accuracy" : (correct/counted)*100})
+    with open(args.log_path / "results_task_1.json", "w") as results_file:
+        json.dump(save_task_1, results_file)
+
+    # TASK 2
+    eval_results_task_2 = []
+    eval_results_task_3 = []
+    correct_task_2 = 0
+    correct_task_3 = 0
+    counted_task_2 = 0
+    counted_task_3 = 0
+
+    for patient_id, patient in tqdm(data.items(), position=0):
+        patient_results = {}
+
+        if patient_id in eval_results_task_3.keys():
+            continue
+        
+        for i, question in tqdm(
+            enumerate(patient["questions"]),
+            position=1,
+            leave=False,
+            total=len(patient["questions"]),
+        ):
+            if patient_results.get(f"question_{i}"):
+                continue
+
+            question["answer_f"] = "Question cannot be answered with provided documents"
+            patient_results[f"question_{i}"] = {}
+
+            for j in range(10):
+                non_answer_docs = sample_distractions(patient_id, data, n=10)
+
+                if j % 2 == 0:
+                    patient_results[f"question_{i}"][f"answer_{j}_correct"] = "Question cannot be answered with provided documents"
+                    answer_docs = {}
+                    task_context = "task_3"
+                else:
+                    patient_results[f"question_{i}"][f"answer_{j}_correct"] = question["correct"]
+                    answer_docs = {
+                        text_id: patient["texts"][text_id]
+                        for text_id in question["answer_location"]
+                    }
+                    task_context = "task_2"
+
+                prompt, answer_location = create_prompt(
+                    answer_docs,
+                    non_answer_docs,
+                    question,
+                    option_labels="abcdef",
+                    max_len=int(args.max_len) - len(tokenizer.encode(sys_prompt)),
+                    tokenizer=tokenizer,
+                )
+
+                if args.model_is_instruct:
+                    if tokenizer.use_default_system_prompt:
+                        model_input = tokenizer.apply_chat_template(
+                            [{"role": "user", "content": sys_prompt+prompt}],
+                            tokenize=False, add_generation_prompt=True
+                        )
+                    else:
+                        model_input = tokenizer.apply_chat_template(
+                            [{"role": "system", "content": sys_prompt}, {"role": "user", "content": prompt}],
+                            tokenize=False, add_generation_prompt=True
+                        )
+                else:
+                    model_input = sys_prompt+"\n\n\n"+prompt
+
+                output = inference_client.text_generation(
+                    model_input,
+                    max_new_tokens=50,
+                    stream=False,
+                    details=False
+                )
+
+                result, correct_answer = compute_metrics(output, question)
+
+                if task_context == "task_3":
+                    if result:
+                        correct_task_3 += 1
+                    counted_task_3 += 1
+                    eval_results_task_3.append({"correct": correct_answer, "prediction": output, "accuracy": (correct_task_3 / counted_task_3) * 100})
+                else:
+                    if result:
+                        correct_task_2 += 1
+                    counted_task_2 += 1
+                    eval_results_task_2.append({"correct": correct_answer, "prediction": output, "accuracy": (correct_task_2 / counted_task_2) * 100})
+
+    with open(log_path / "results_task_2.json", "w") as results_file_task_2:
+        json.dump(eval_results_task_2, results_file_task_2)
+
+    with open(log_path / "results_task_3.json", "w") as results_file_task_3:
+        json.dump(eval_results_task_3, results_file_task_3)
 
 
 if __name__ == "__main__":
