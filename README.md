@@ -19,10 +19,10 @@ CLUE is a benchmark to evaluate the clinical language understanding of LLMS. It 
 Despite the advancements promised by biomedical LLMs for patient care, a significant gap exists in their evaluation, particularly concerning their application in real-world clinical settings. Existing assessments, focused on medical knowledge through constructed questions, fall short of capturing the complexity and diversity of clinical tasks. Additionally, the rapid pace at which LLMs evolve further complicates selecting the most appropriate models for healthcare applications. In response to these challenges, CLUE aims to offer a comprehensive and standardized framework for assessing the performance of both specialized biomedical and advanced general-domain LLMs in practical healthcare tasks.
 
 ## Benchmark Compilation
+We introduce two novel tasks based on MIMIC IV discharge summaries. The following section describes how to generate these tasks and collect the existing ones.
 
 ### MeDiSumQA
-
-To run the data generation pipeline described in the paper a few preparatory steps are necessary:
+To run the data generation pipeline described in the paper, a few preparatory steps are necessary:
 
 - You need access to [MIMIC-IV-Note v2.2](https://physionet.org/content/mimic-iv-note/2.2/)
 - A locally running LLM. Our scripts are compatible with [Mixtral-8x7B-Instruct-v0.1](https://huggingface.co/mistralai/Mixtral-8x7B-Instruct-v0.1) hosted with the [Text Generation Inference](https://github.com/huggingface/text-generation-inference). For any other configuration, please adjust the api calls and tokenizer accordingly.
