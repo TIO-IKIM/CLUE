@@ -40,7 +40,7 @@ def build_few_shot_examples(examples, sys_prompt, user_prompt_template, assistan
                     chat += f"\n\n{user_prompt}\n\n{assistant_response}"
     return chat
 
-def build_model_input(example, user_prompt_template, assistant_response_template, model_is_instruct, few_shot_chat, tokenizer):
+def build_model_input(example, user_prompt_template, model_is_instruct, few_shot_chat, tokenizer):
     user_prompt = user_prompt_template.format(**example)
     if model_is_instruct:
         chat = [{"role": "user", "content": f"{user_prompt}"}]
