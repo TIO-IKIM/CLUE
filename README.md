@@ -1,6 +1,6 @@
 # CLUE: A Clinical Language Understanding Evaluation for LLMs
 
-CLUE is a benchmark to evaluate the clinical language understanding of LLMS. It consists of 6 tasks, including two novel ones based on MIMIC IV notes. This repository provides the code to run the benchmark and generate the new tasks.
+CLUE is a benchmark to evaluate the clinical language understanding of LLMs. It consists of 6 tasks, including two novel ones based on MIMIC IV notes. This repository provides the code to run the benchmark and generate the new tasks.
 
 <p align="center">
   <img src="images/CLUE_overview.png" width="300"/>
