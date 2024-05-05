@@ -1,8 +1,8 @@
 # Private data / data from other papers which should not be pushed
 data/LongHealth
 data/MeQSum
-data/ProblemSummary
-data/MedNli
+data/BioNLP2023
+data/MedNLI
 
 # Predictions can't be pushed as they contain inputs from private datasets
 predictions/
