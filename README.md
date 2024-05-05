@@ -1,5 +1,7 @@
 # CLUE: A Clinical Language Understanding Evaluation for LLMs
 
+[Project Website](https://clue.ikim.nrw/) | [Paper](https://arxiv.org/abs/2404.04067)
+
 CLUE is a benchmark to evaluate the clinical language understanding of LLMs. It consists of 6 tasks, including two novel ones based on MIMIC IV notes. This repository provides the code to run the benchmark and generate the new tasks.
 
 <p align="center">
