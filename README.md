@@ -10,7 +10,6 @@ CLUE is a benchmark to evaluate the clinical language understanding of LLMs. It 
 - [Motivation](#motivation)
 - [Benchmark Compilation](#benchmark-compilation)
 - [Run Evaluation](#run-evaluation)
-- [Results](#results)
 - [Acknowledgement](#acknowledgement)
 - [Citation](#citation)
 
@@ -90,105 +89,28 @@ Make sure you have access to the resources on physionet.
 
 ## Run Evaluation
 
-To run the entire benchmark for a Hugging Face model running locally execute:
+
+### Basic Usage
 
 ```bash
-./scripts/run_benchmark.sh <model-address> <model-id>
+./scripts/run_benchmark.sh --model_address <local-model-address> --model_id <hf-model-id> [OPTIONS]
 ```
+### Arguments
+
+- --model_address <local-model-address>: Endpoint where the model is hosted.
+- --model_id <hf-model-id>: Identifier for the model registered on Hugging Face.
+### Options
+- --model_has_system: Indicates that the model's prompt template includes a section for system prompts.
+- --model_is_instruct: Marks the model as optimized for processing instructional prompts.
+- --log_path <path>: Specifies the directory for log files. Defaults to the model name if not provided.
+- --token <API token>: HF Hub API token required for authentication.
 
 
-## Results
+### Example Command
 
-### MeQSum
-|                            |   ROUGE_L |   ROUGE1 |   ROUGE2 |   BERT_P |   BERT_R |   BERT_F1 |
-|:---------------------------|----------:|---------:|---------:|---------:|---------:|----------:|
-| llama2-7b                  |      7.16 |     8.58 |     2.89 |    27.07 |    63.55 |     37.5  |
-| meditron-7b                |      6.17 |     7.47 |     2.53 |    30.67 |    61.54 |     40.53 |
-| llama2-70b                 |      3.75 |     4.15 |     1.05 |    25.48 |    50.54 |     33.59 |
-| meditron-70b               |      2.95 |     3.24 |     0.76 |    23.14 |    49.81 |     31.27 |
-| Mistral-7B-v0.1            |      6.28 |     7.86 |     2.49 |    34.04 |    66.18 |     44.6  |
-| Mistral-7B-Instruct-v0.1   |     21.85 |    25.26 |    11.17 |    61    |    72.81 |     66.15 |
-| BioMistral-7B              |     24.58 |    27.38 |    12.1  |    63.6  |    71.36 |     67.05 |
-| BioMistral-7B-DARE         |     26.16 |    29.69 |    13.49 |    64.29 |    74.22 |     68.68 |
-| Mixtral-8x7B-v0.1          |      9.36 |    10.35 |     4.3  |    20.77 |    66.76 |     31.04 |
-| Mixtral-8x7B-Instruct-v0.1 |     32.47 |    36.38 |    16.86 |    69.71 |    76.6  |     72.8  |
-| zephyr-7b-beta             |     25.66 |    29.81 |    12.33 |    63.53 |    75.67 |     68.85 |
-
-### Problem Summary
-
-|                            |   ROUGE_L |   ROUGE1 |   ROUGE2 |   BERT_P |   BERT_R |   BERT_F1 |   UMLS_P |   UMLS_R |   UMLS_F1 |
-|:---------------------------|----------:|---------:|---------:|---------:|---------:|----------:|---------:|---------:|----------:|
-| llama2-7b                  |      5.97 |     7.35 |     2.11 |    53.76 |    67.06 |     59.45 |     6.86 |    22.7  |      9.06 |
-| meditron-7b                |      6.49 |     7.87 |     2.59 |    54.41 |    66.6  |     59.57 |    10.23 |    27.25 |     12.52 |
-| llama2-70b                 |      7.13 |     8.77 |     3.15 |    53.68 |    67.9  |     59.61 |    11.6  |    28.97 |     14.34 |
-| meditron-70b               |      7.22 |     8.91 |     3.21 |    53.74 |    68.92 |     60.08 |    10.71 |    29.43 |     13.91 |
-| Mistral-7B-v0.1            |      7.07 |     8.99 |     3.17 |    55.24 |    68.17 |     60.74 |    13.37 |    30.46 |     15.67 |
-| Mistral-7B-Instruct-v0.1   |     14.46 |    18.6  |     6.26 |    61.17 |    71.55 |     65.79 |    16.51 |    34.93 |     20.08 |
-| BioMistral-7B              |     18    |    21.85 |     8.63 |    66.4  |    67.98 |     66.96 |    23.31 |    24.03 |     20.92 |
-| BioMistral-7B-DARE         |     18.81 |    22.92 |     8.93 |    66.65 |    71.9  |     68.93 |    22.75 |    30.96 |     22.65 |
-| Mixtral-8x7B-v0.1          |      7.26 |     9.37 |     3.14 |    53.77 |    69.91 |     60.54 |     8.45 |    30.63 |     11.94 |
-| Mixtral-8x7B-Instruct-v0.1 |     17.44 |    23.39 |     7.7  |    63.83 |    74.44 |     68.56 |    15.85 |    33.03 |     19.51 |
-| zephyr-7b-beta             |     14.81 |    19.91 |     5.98 |    62.16 |    74.03 |     67.39 |    14.49 |    38.08 |     19.2  |
-
-
-
-### MedNLI
-
-|                            |   ACCURACY |
-|:---------------------------|-----------:|
-| llama2-7b                  |      29.51 |
-| meditron-7b                |       2.39 |
-| llama2-70b                 |      76.27 |
-| meditron-70b               |      63.52 |
-| Mistral-7B-v0.1            |      67.54 |
-| Mistral-7B-Instruct-v0.1   |      64.79 |
-| BioMistral-7B              |      62.32 |
-| BioMistral-7B-DARE         |      66.76 |
-| Mixtral-8x7B-v0.1          |      80.14 |
-| Mixtral-8x7B-Instruct-v0.1 |      76.48 |
-| zephyr-7b-beta             |      68.45 |
-
-### LongHealth
-
-**Task 1**:
-| Mistral-7b | Mistral-7b-instruct | Zephyr-7b | Mixtral-8x7b | Mixtral-8x7b-instruct | Biomistral-7b | Biomistral-7b-DARE |
-|------------|---------------------|-----------|--------------|-----------------------|---------------|--------------------|
-| 15.75%     | 32.90%              | 35.4%     | 31.75%       | 74.25%                | 28.55%        | 33.55%             |
-
-
-**Task 2 & 3**:
-| Mistral-7b | Mistral-7b-instruct | Zephyr-7b | Mixtral-8x7b | Mixtral-8x7b-instruct | Biomistral-7b | Biomistral-7b-DARE |
-|------------|---------------------|-----------|--------------|-----------------------|---------------|--------------------|
-| 22.60%     | 21.43%              | 33.70%    | 31.23%       | 43.82%                | 20.72%        | 21.25%             |
-
-
-### MeDiSumQA
-
-|                            |   ROUGE_L |   ROUGE1 |   ROUGE2 |   BERT_P |   BERT_R |   BERT_F1 |   UMLS_P |   UMLS_R |   UMLS_F1 |
-|:---------------------------|----------:|---------:|---------:|---------:|---------:|----------:|---------:|---------:|----------:|
-| Mistral-7B-v0.1            |      7.91 |     9.56 |     3.19 |    47.39 |    61.94 |     53.59 |     6.48 |    21.9  |      9.11 |
-| Mistral-7B-Instruct-v0.1   |     18.78 |    21.5  |    10.05 |    61.67 |    73.34 |     66.71 |    15.48 |    39.72 |     18.63 |
-| BioMistral-7B              |     11.69 |    13.46 |     5.11 |    52.51 |    56.31 |     54.11 |    14.09 |    17.98 |     13.19 |
-| BioMistral-7B-DARE         |     17.54 |    19.9  |     9.34 |    61.2  |    69.14 |     64.6  |    18.05 |    30.89 |     18.65 |
-| Mixtral-8x7B-v0.1          |      8.35 |    10.21 |     3.44 |    48.66 |    64.39 |     55.3  |     5.26 |    22.63 |      8.25 |
-| Mixtral-8x7B-Instruct-v0.1 |     25.54 |    29.26 |    13.89 |    66.07 |    74.18 |     69.57 |    23.07 |    36.66 |     24.47 |
-| zephyr-7b-beta             |     18.2  |    21.3  |     8.91 |    60.95 |    73.24 |     66.27 |    15.2  |    41.74 |     19.06 |
-
-
-### MeDiSumCode
-
-|                            |   ICD EM P |   ICD EM R |   ICD EM F1 |   ICD AP P |   ICD AP R |   ICD AP F1 |   VALID CODES |
-|:---------------------------|-----------:|-----------:|------------:|-----------:|-----------:|------------:|--------------:|
-| Mistral-7B-v0.1            |       2.05 |       0.89 |        0.77 |      14.25 |       4.24 |        5.32 |         33.21 |
-| Mistral-7B-Instruct-v0.1   |       0.88 |       0.57 |        0.57 |      12.32 |       2.79 |        3.78 |         37.25 |
-| BioMistral-7B              |       1.59 |       0.88 |        0.65 |      10.18 |       3.77 |        4.57 |         27.88 |
-| BioMistral-7B-DARE         |       1.57 |       1.65 |        1.2  |      15.06 |       6.57 |        6.66 |         56.04 |
-| Mixtral-8x7B-v0.1          |       7.65 |       5.86 |        4.57 |      33.8  |      14.33 |       17.26 |         47.2  |
-| Mixtral-8x7B-Instruct-v0.1 |      14.45 |       9.33 |       10.49 |      44.43 |      24.24 |       28.99 |         82.87 |
-| zephyr-7b-beta             |       2.92 |       2.67 |        2.31 |      19.25 |      11.23 |       12    |         71.27 |
-
-
-
+```bash
+./scripts/run_benchmark.sh --model_address http://0.0.0.0:8085 --model_id meta-llama/Meta-Llama-3-8B --model_has_system --model_is_instruct
+```
 
 
 ## Acknowledgement
