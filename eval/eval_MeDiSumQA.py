@@ -34,6 +34,7 @@ def compute_metrics(model_output, label, rouge):
         predictions=predictions,
         references=references
     )
+    
     BERT_P, BERT_R, BERT_F1 = b_score(
         predictions, references, model_type="emilyalsentzer/Bio_ClinicalBERT")
     BERT_P, BERT_R, BERT_F1 = BERT_P.cpu().item(
@@ -54,9 +55,11 @@ def main():
     argument_parser.add_argument("--model_address", type=str)
     argument_parser.add_argument("--model_name_or_path", type=str)
     argument_parser.add_argument("--model_is_instruct", action='store_true')
+    argument_parser.add_argument("--model_has_system", action='store_true')
     argument_parser.add_argument("--num_few_shot_examples", type=int)
     argument_parser.add_argument("--data_path", type=str)
     argument_parser.add_argument("--log_path", type=str)
+    argument_parser.add_argument("--token", type=str)
     args = argument_parser.parse_args()
 
     log_path = Path(args.log_path)
@@ -72,7 +75,7 @@ def main():
         (log_path / "predictions.json").unlink()
 
     # Tokenizer & Inference client & metrics
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, token=args.token)
     inference_client = InferenceClient(model=args.model_address)
 
     rouge = load("rouge")
@@ -89,14 +92,14 @@ def main():
     chat = None
     if args.num_few_shot_examples > 0:
         chat = build_few_shot_examples(
-            data[:args.num_few_shot_examples], sys_prompt, user_prompt_template, assistant_response_template, tokenizer, args.model_is_instruct)
+            data[:args.num_few_shot_examples], sys_prompt, user_prompt_template, assistant_response_template, args.model_has_system, args.model_is_instruct)
     else:
-        chat = build_first_turn(sys_prompt, user_prompt=None, assistant_response=None, tokenizer=tokenizer, is_instruct=args.model_is_instruct)
+        chat = build_first_turn(sys_prompt, user_prompt=None, assistant_response=None, has_system=args.model_has_system, is_instruct=args.model_is_instruct)
 
     results = {}
     for i, entry in enumerate((pbar := tqdm(data[args.num_few_shot_examples:]))):
 
-        model_input = build_model_input(entry, user_prompt_template, assistant_response_template, args.model_is_instruct, chat, tokenizer)
+        model_input = build_model_input(entry, user_prompt_template, args.model_is_instruct, chat, tokenizer)
         model_input += assistant_response_template.format(Answer="")
 
         if i == 0:
@@ -104,12 +107,24 @@ def main():
             with open(log_path / "debug_model_input.txt", "w") as f_w:
                 f_w.write(model_input)
 
-        output = inference_client.text_generation(
-            model_input,
-            max_new_tokens=200,
-            stream=False,
-            details=False
-        )
+        if "llama-3" in args.model_name_or_path.lower() or "llama3" in args.model_name_or_path.lower():
+                    output = inference_client.text_generation(
+                    model_input,
+                    max_new_tokens=200,
+                    stream=False,
+                    details=False,
+                    stop_sequences=["<|start_header_id|>", "<|end_header_id|>", "<|eot_id|>", "<|im_end|>"],
+                    truncate=7992
+                    )
+                    if "<|im_end|>" in output:
+                        output = output.split("<|im_end|>")[0]
+        else:
+            output = inference_client.text_generation(
+                model_input,
+                max_new_tokens=200,
+                stream=False,
+                details=False
+            )
 
         # Update metric variables
         new_results = compute_metrics(output, entry["Answer"], rouge)

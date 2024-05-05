@@ -35,14 +35,16 @@ def main():
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("--model_address", type=str)
     argument_parser.add_argument("--model_name_or_path", type=str)
+    argument_parser.add_argument("--model_has_system", action='store_true')
     argument_parser.add_argument("--model_is_instruct", action='store_true')
     argument_parser.add_argument("--num_few_shot_examples", type=int)
     argument_parser.add_argument("--data_path", type=str)
     argument_parser.add_argument("--log_path", type=str)
+    argument_parser.add_argument("--token", type=str)
     args = argument_parser.parse_args()
 
     # Tokenizer & Inference client
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, token=args.token)
     inference_client = InferenceClient(model=args.model_address)
 
     # Load data
@@ -51,7 +53,7 @@ def main():
     
     log_path = Path(args.log_path)
     if not log_path.exists():
-        log_path.mkdir()
+        log_path.mkdir(parents=True, exist_ok=True)
         
     if (log_path / "results.json").exists():
         print(f"Skipping dataset {args.data_path} as results already exist")
@@ -63,11 +65,11 @@ def main():
 
     # Create few shot examples
     few_shot_chat = build_few_shot_examples(
-        data[:args.num_few_shot_examples], sys_prompt, user_prompt_template, assistant_response_template, tokenizer, args.model_is_instruct)
+        data[:args.num_few_shot_examples], sys_prompt, user_prompt_template, assistant_response_template, args.model_has_system, args.model_is_instruct)
 
     results = {}
     for i, entry in enumerate((pbar := tqdm(data[args.num_few_shot_examples:]))):
-        model_input = build_model_input(entry, user_prompt_template, assistant_response_template, args.model_is_instruct, few_shot_chat, tokenizer)
+        model_input = build_model_input(entry, user_prompt_template, args.model_is_instruct, few_shot_chat, tokenizer)
         model_input += assistant_response_template.format(**{ground_truth_key: ""})
         
         if i == 0:
@@ -77,12 +79,23 @@ def main():
 
         ground_truth = entry[ground_truth_key]
 
-        output = inference_client.text_generation(
-            model_input,
-            max_new_tokens=20,
-            stream=False,
-            details=False
-        )
+        if "llama-3" in args.model_name_or_path.lower() or "llama3" in args.model_name_or_path.lower():
+            output = inference_client.text_generation(
+                model_input,
+                max_new_tokens=20,
+                stream=False,
+                details=False,
+                stop_sequences=["<|start_header_id|>", "<|end_header_id|>", "<|eot_id|>", "<|im_end|>"]
+            )
+            if "<|im_end|>" in output:
+                        output = output.split("<|im_end|>")[0]
+        else:
+            output = inference_client.text_generation(
+                model_input,
+                max_new_tokens=20,
+                stream=False,
+                details=False
+            )
         
         # Cut off new self-prompting
         output = re.sub(

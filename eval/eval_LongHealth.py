@@ -1,7 +1,7 @@
 
 import argparse
 import json
-import tqdm
+from tqdm import tqdm
 import random
 import numpy
 import re
@@ -43,20 +43,22 @@ For example, if the correct answer to a question is option C, and the text for C
 'The correct answer is C: Acute bronchitis.'
 """
 
-def compute_metrics(model_prediction, question):
+def compute_metrics(model_prediction, question, task3=False):
     for answer in question:
         if not answer.startswith("answer") or answer.endswith("location"):
             continue
         if question["correct"] in question[answer]:
             correct_answer = answer[-1].upper()
 
-    model_choice = re.findall(r"The correct answer is: (\w):", model_prediction)
+    model_choice = re.findall(r"The correct answer is (\w):", model_prediction)
 
     # Accuracy
     if model_choice == []: 
         return False, correct_answer
-    if model_choice[0] != model_choice:
+    if model_choice[0] != correct_answer and not task3:
         return False, correct_answer
+    if task3:
+        return model_choice[0] == "F", "Question cannot be answered with provided documents"
     else:
         return True, correct_answer
 
@@ -185,14 +187,16 @@ def main():
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("--model_address", type=str)
     argument_parser.add_argument("--model_name_or_path", type=str)
+    argument_parser.add_argument("--model_has_system", action='store_true')
     argument_parser.add_argument("--model_is_instruct", action='store_true')
     argument_parser.add_argument("--data_path", type=str)
     argument_parser.add_argument("--log_path", type=str)
     argument_parser.add_argument("--max_len", type=str)
+    argument_parser.add_argument("--token", type=str)
     args = argument_parser.parse_args()
 
     # Tokenizer & Inference client
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, token=args.token)
     inference_client = InferenceClient(model=args.model_address)
 
     # Load data
@@ -201,33 +205,40 @@ def main():
     
     log_path = Path(args.log_path)
     if not log_path.exists():
-        log_path.mkdir()
+        log_path.mkdir(parents=True, exist_ok=True)
         
     if (log_path / "results.json").exists():
         print(f"Skipping dataset {args.data_path} as results already exist")
         return
 
-    if (log_path / "predictions.json").exists():
-        (log_path / "predictions.json").unlink()
+    if (log_path / "results_task_1.json").exists():
+        (log_path / "results_task_1.json").unlink()
+        
+    if (log_path / "results_task_2.json").exists():
+        (log_path / "results_task_2.json").unlink()
+        
+    if (log_path / "results_task_3.json").exists():
+        (log_path / "results_task_3.json").unlink()
 
     # No few-shot examples for this experiment, as it relies on very long
     # contexts which don't allow for few shot
     
     # TASK 1
-    eval_results_task_1 = {}
+    results = {}
     save_task_1 = []
+    
     correct = 0
     counted = 0
-    for idx, patient in tqdm.tqdm(data.items(), position=0):
+        
+    for idx, patient in (pbar := tqdm(data.items(), position=0)):
         patient_results = {}
-        if idx in eval_results_task_1.keys():
-            continue
-        for i, question in tqdm.tqdm(
+        for i, question in tqdm(
             enumerate(patient["questions"]),
             position=1,
             leave=False,
             total=len(patient["questions"]),
         ):
+
             if patient_results.get(f"question_{i}"):
                 continue
 
@@ -252,36 +263,51 @@ def main():
                 )
 
                 if args.model_is_instruct:
-                    if tokenizer.use_default_system_prompt:
+                    if not args.model_has_system:
                         model_input = tokenizer.apply_chat_template(
-                            [{"role" : "user", "content" : sys_prompt+prompt}],
+                            [{"role": "user", "content": sys_prompt+prompt}],
                             tokenize = False, add_generation_prompt=True
                         )
                     else:
                         model_input = tokenizer.apply_chat_template(
-                            [{"role" : "system", "content" : sys_prompt}, {"role" : "user", "content" : prompt}],
-                            tokenize= False, add_generation_prompt=True
+                            [{"role" : "system", "content" : sys_prompt}, 
+                             {"role" : "user", "content" : prompt}],
+                            tokenize=False, 
+                            add_generation_prompt=True
                         )
                 else:
                     model_input = sys_prompt+"\n\n\n"+prompt
-
-                output = inference_client.text_generation(
+                    
+                    
+                if "llama-3" in args.model_name_or_path.lower() or "llama3" in args.model_name_or_path.lower():
+                    output = inference_client.text_generation(
                     model_input,
                     max_new_tokens=50,
                     stream=False,
-                    details=False
-                )
+                    details=False,
+                    stop_sequences=["<|start_header_id|>", "<|end_header_id|>", "<|eot_id|>", "<|im_end|>"]
+                    )
+                else:
+                    output = inference_client.text_generation(
+                        model_input,
+                        max_new_tokens=50,
+                        stream=False,
+                        details=False
+                    )
 
                 result, correct_answer = compute_metrics(output, question)
 
                 if result:
                     correct += 1
                 counted += 1
+                
+            pbar.set_description(f"Average score Task 1: {(correct/counted)*100:.2f}")
 
-                save_task_1.append({"correct" : correct_answer, "prediction" : output, "accuracy" : (correct/counted)*100})
-    with open(args.log_path / "results_task_1.json", "w") as results_file:
-        json.dump(save_task_1, results_file)
-
+            with open(log_path / "results_task_1.json", "a") as results_file:
+                json.dump({"correct" : correct_answer, "prediction" : output, "accuracy" : (correct/counted)*100}, results_file)
+                results_file.write("\n")
+        
+    results["Task1_Accuracy"] = (correct/counted)*100
     # TASK 2
     eval_results_task_2 = []
     eval_results_task_3 = []
@@ -290,11 +316,9 @@ def main():
     counted_task_2 = 0
     counted_task_3 = 0
 
-    for patient_id, patient in tqdm(data.items(), position=0):
-        patient_results = {}
+    for patient_id, patient in (pbar := tqdm(data.items(), position=0)):
 
-        if patient_id in eval_results_task_3.keys():
-            continue
+        patient_results = {}
         
         for i, question in tqdm(
             enumerate(patient["questions"]),
@@ -333,7 +357,7 @@ def main():
                 )
 
                 if args.model_is_instruct:
-                    if tokenizer.use_default_system_prompt:
+                    if not args.model_has_system:
                         model_input = tokenizer.apply_chat_template(
                             [{"role": "user", "content": sys_prompt+prompt}],
                             tokenize=False, add_generation_prompt=True
@@ -353,24 +377,33 @@ def main():
                     details=False
                 )
 
-                result, correct_answer = compute_metrics(output, question)
+                
 
                 if task_context == "task_3":
+                    result, correct_answer = compute_metrics(output, question, task3=True)
                     if result:
                         correct_task_3 += 1
                     counted_task_3 += 1
                     eval_results_task_3.append({"correct": correct_answer, "prediction": output, "accuracy": (correct_task_3 / counted_task_3) * 100})
+                    with open(log_path / "results_task_3.json", "a") as results_file_task_3:
+                        json.dump({"correct": correct_answer, "prediction": output, "accuracy": (correct_task_3 / counted_task_3) * 100}, results_file_task_3)
+                        results_file_task_3.write("\n")
                 else:
+                    result, correct_answer = compute_metrics(output, question, task3=False)
                     if result:
                         correct_task_2 += 1
                     counted_task_2 += 1
                     eval_results_task_2.append({"correct": correct_answer, "prediction": output, "accuracy": (correct_task_2 / counted_task_2) * 100})
+                    with open(log_path / "results_task_2.json", "a") as results_file_task_2:
+                        json.dump({"correct": correct_answer, "prediction": output, "accuracy": (correct_task_2 / counted_task_2) * 100}, results_file_task_2)
+                        results_file_task_2.write("\n")
+                    
+    results["Task2_Accuracy"] = (correct_task_2 / counted_task_2) * 100
+    results["Task3_Accuracy"] = (correct_task_3 / counted_task_3) * 100
+    
+    with open(log_path / "results.json", "w") as f_w:
+        json.dump(results, f_w)
 
-    with open(log_path / "results_task_2.json", "w") as results_file_task_2:
-        json.dump(eval_results_task_2, results_file_task_2)
-
-    with open(log_path / "results_task_3.json", "w") as results_file_task_3:
-        json.dump(eval_results_task_3, results_file_task_3)
 
 
 if __name__ == "__main__":
