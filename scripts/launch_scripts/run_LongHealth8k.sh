@@ -1,10 +1,11 @@
 #!/bin/bash
 
 # Tasks specific settings
-eval_script="eval/eval_MeDiSumCode.py"
-dataset="data/MeDiSumCode/MeDiSumCode.json"
-prediction_path="predictions/MeDiSumCode"
-num_few_shot_examples=1
+eval_script="eval/eval_LongHealth.py"
+dataset="data/LongHealth/benchmark_v5.json"
+max_len="8140"
+prediction_path="predictions/LongHealth8k"
+
 
 
 # Default values for flags
@@ -32,8 +33,8 @@ done
 cmd="python $eval_script --model_address $model_address --model_name_or_path $model_id"
 [[ $model_has_system == true ]] && cmd+=" --model_has_system"
 [[ $model_is_instruct == true ]] && cmd+=" --model_is_instruct"
-cmd+=" --num_few_shot_examples $num_few_shot_examples --data_path $dataset --log_path $log_path"
-[[ -n $token ]] && cmd+=" --hf_token $token"
+cmd+=" --data_path $dataset --log_path $log_path --max_len $max_len"
+[[ -n $token ]] && cmd+=" --token $token"
 
 # Execute the command
-echo $cmd
+eval $cmd
