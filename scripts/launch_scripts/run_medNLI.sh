@@ -32,7 +32,7 @@ cmd="python $eval_script --model_address $model_address --model_name_or_path $mo
 [[ $model_has_system == true ]] && cmd+=" --model_has_system"
 [[ $model_is_instruct == true ]] && cmd+=" --model_is_instruct"
 cmd+=" --num_few_shot_examples $num_few_shot_examples --data_path $dataset --log_path $log_path"
-[[ -n $token ]] && cmd+=" --hf_token $token"
+[[ -n $token ]] && cmd+=" --token $token"
 
 # Execute the command
-echo $cmd
+eval $cmd
