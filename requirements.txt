@@ -3,3 +3,12 @@ transformers==4.39.3
 huggingface_hub==0.22.2
 evaluate==0.4.0
 pandas==2.2.2
+tqdm==4.66.4
+--extra-index-url https://download.pytorch.org/whl/cu118
+torch
+torchvision
+torchaudio
+absl-py==2.1.0
+nltk==3.8.1
+rouge-score==0.1.2
+openpyxl==3.1.2

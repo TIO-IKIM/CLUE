@@ -124,7 +124,7 @@ def main():
             )
 
         # Cut off new self-prompting
-        output = re.sub("(You are an AI.*)|(\[INST\].*)|((<\|user\|>).*)", "", output)
+        output = re.sub(r"(You are an AI.*)|(\[INST\].*)|((<\|user\|>).*)", "", output)
         
         new_results = compute_metrics(output, entry["Summary"], rouge)
         update_results(results, new_results)

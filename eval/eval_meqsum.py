@@ -118,7 +118,7 @@ def main():
         
         # Cut off new self-prompting
         output = re.sub(
-            "(You are an AI.*)|(\[INST\].*)|((<\|user\|>).*)", "", output)
+            r"(You are an AI.*)|(\[INST\].*)|((<\|user\|>).*)", "", output)
         
 
         # Update metric variables
