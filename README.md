@@ -27,8 +27,7 @@ To run the data generation pipeline described in the paper, a few preparatory st
 
 - You need access to [MIMIC-IV-Note v2.2](https://physionet.org/content/mimic-iv-note/2.2/)
 - A locally running LLM. Our scripts are compatible with [Mixtral-8x7B-Instruct-v0.1](https://huggingface.co/mistralai/Mixtral-8x7B-Instruct-v0.1) hosted with the [Text Generation Inference](https://github.com/huggingface/text-generation-inference). For any other configuration, please adjust the api calls and tokenizer accordingly.
-- Install our BERTScore fork to load the rescaled baseline for MIMIC: ```
-pip install git+https://github.com/dadaamin/bert_score.git```
+- Install the dependencies for this repo from the requirements.txt file.
 
 The following commands are generating the MeDiSumQA dataset:
 

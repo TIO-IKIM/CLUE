@@ -1,3 +1,6 @@
+# Private launch files
+launch_model.sh
+
 # Private data / data from other papers which should not be pushed
 data/LongHealth
 data/MeQSum
