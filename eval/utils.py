@@ -20,7 +20,6 @@ def build_first_turn(sys_prompt, user_prompt, assistant_response, has_system, is
             else:
                 chat = [{"role" : "user", "content" : f"{sys_prompt}"}]
     else:
-        chat = f"{sys_prompt}"
         if user_prompt and assistant_response:
             chat += f"\n\n{user_prompt}\n\n{assistant_response}"
     return chat
