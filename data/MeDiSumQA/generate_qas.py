@@ -9,10 +9,10 @@ from argparse import ArgumentParser
 from huggingface_hub import InferenceClient
 from transformers import AutoTokenizer
 from difflib import SequenceMatcher
-tokenizer = AutoTokenizer.from_pretrained("mistralai/Mixtral-8x7B-Instruct-v0.1")
+tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-70B-Instruct")
 
 
-from prompts import fact_extraction_system_prompt, fact_extraction_user_template, fact_extraction_answer, question_generation_system_prompt, question_generation_answer_example, questions_generation_user_template
+from prompts import fact_extraction_system_prompt, fact_extraction_user_template, fact_extraction_answer, question_generation_system_prompt, questions_generation_user_template, question_generation_example_input, question_generation_example_output
 from utils import split_to_paragraphs, read_discharge_summaries, find_instructions, postprocess_instructions
 
 
@@ -28,8 +28,8 @@ def postprocess_llm_results(result):
         l = l.strip()
         if "___" in l:
             continue
-        if any([s in l.lower() for s in statement_blocklist]):
-            break
+        # if any([s in l.lower() for s in statement_blocklist]):
+        #     break
         if l.startswith("* ") or l.startswith("- "):
             processed_lines.append(l[2:].strip())
     return processed_lines
@@ -42,8 +42,8 @@ def postprocess_qas(statements, model_generation):
     qas_filtered = []
     for q, a in qas:
         if a.strip() in statements:
-            if not any(block_w in q.lower() for block_w in questions_blocklist):
-                qas_filtered.append((q.strip(), a.strip()))
+            # if not any(block_w in q.lower() for block_w in questions_blocklist):
+            qas_filtered.append((q.strip(), a.strip()))
     return qas_filtered
 
 
@@ -75,19 +75,23 @@ for note_id, ds in tqdm(discharge_summaries, total=args.max_discharge_notes):
     instructions = instructions.split("It was a pleasure")[0]
 
     if instructions:
-        messages = [{"role": "user", "content": fact_extraction_system_prompt.format(example_ds=example_ds)}, 
+        messages = [{"role": "system", "content": fact_extraction_system_prompt},
+                    {"role": "user", "content": fact_extraction_user_template.format(instructions=example_ds)},
                     {"role": "assistant", "content": fact_extraction_answer.format(statements=example_ds_statements)}, 
                     {"role": "user", "content": fact_extraction_user_template.format(instructions=instructions)}]
         message_formatted = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True) + "\nStatements:\n- "
-        result_answers = "\nStatements:\n- " + client.text_generation(prompt=message_formatted, max_new_tokens=1000)
+        result_answers = "\nStatements:\n- " + client.text_generation(prompt=message_formatted, max_new_tokens=1000, stop_sequences=["<|start_header_id|>", "<|end_header_id|>", "<|eot_id|>", "<|im_end|>"])
         statements = postprocess_llm_results(result_answers)
         statements_str = "- " + "\n- ".join(statements)
         
-        messages = [{"role": "user", "content": question_generation_system_prompt}, 
-                {"role": "assistant", "content": question_generation_answer_example}, 
-                {"role": "user", "content": questions_generation_user_template.format(statements=statements_str)}]
+        
+        messages = [
+            {"role": "system", "content": question_generation_system_prompt},
+            {"role": "user", "content": question_generation_example_input}, 
+            {"role": "assistant", "content": question_generation_example_output}, 
+            {"role": "user", "content": questions_generation_user_template.format(statements=statements_str)}]
         message_formatted = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True) + "\nQuestion: "
-        qas = "\nQuestion: " + client.text_generation(prompt=message_formatted, max_new_tokens=1000)
+        qas = "\nQuestion: " + client.text_generation(prompt=message_formatted, max_new_tokens=1000, stop_sequences=["<|start_header_id|>", "<|end_header_id|>", "<|eot_id|>", "<|im_end|>"])
         qas_post = postprocess_qas(statements, qas)
         
         if result_answers:
