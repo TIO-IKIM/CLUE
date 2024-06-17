@@ -21,7 +21,7 @@ def build_first_turn(sys_prompt, user_prompt, assistant_response, has_system, is
                 chat = [{"role" : "user", "content" : f"{sys_prompt}"}]
     else:
         if user_prompt and assistant_response:
-            chat += f"\n\n{user_prompt}\n\n{assistant_response}"
+            chat = f"\n\n{user_prompt}\n\n{assistant_response}"
     return chat
 
 def build_few_shot_examples(examples, sys_prompt, user_prompt_template, assistant_response_template, has_system, is_instruct):
