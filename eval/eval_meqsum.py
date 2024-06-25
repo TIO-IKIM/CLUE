@@ -7,7 +7,7 @@ from tqdm import tqdm
 from pathlib import Path
 
 import pandas as pd
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoConfig
 from huggingface_hub import InferenceClient
 from evaluate import load
 from bert_score import score as b_score
@@ -75,6 +75,8 @@ def main():
     # Tokenizer & Inference client & metrics
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, token=args.token)
     inference_client = InferenceClient(model=args.model_address)
+    model_config = AutoConfig.from_pretrained(args.model_name_or_path, token=args.token, trust_remote_code=True)
+    
     rouge = load("rouge")
 
     # Load data
@@ -97,24 +99,20 @@ def main():
 
         ground_truth = entry[ground_truth_key]
 
+        stop_sequences = None
+        max_new_tokens = 200
         if "llama-3" in args.model_name_or_path.lower() or "llama3" in args.model_name_or_path.lower():
-                    output = inference_client.text_generation(
-                    model_input,
-                    max_new_tokens=200,
-                    stream=False,
-                    details=False,
-                    stop_sequences=["<|start_header_id|>", "<|end_header_id|>", "<|eot_id|>", "<|im_end|>"]
-                    )
-                            
-                    if "<|im_end|>" in output:
-                                output = output.split("<|im_end|>")[0]
-        else:
-            output = inference_client.text_generation(
-                model_input,
-                max_new_tokens=200,
-                stream=False,
-                details=False
+            stop_sequences=["<|start_header_id|>", "<|end_header_id|>", "<|eot_id|>", "<|im_end|>"]
+        output = inference_client.text_generation(
+            model_input,
+            max_new_tokens=max_new_tokens,
+            truncate=min(model_config.max_position_embeddings - max_new_tokens, 24576),
+            stream=False,
+            details=False,
+            stop_sequences=stop_sequences
             )
+        if "phi" in args.model_name_or_path.lower() and " <|end|>" in output:
+            output = output.split(" <|end|>")[0]
         
         # Cut off new self-prompting
         output = re.sub(
