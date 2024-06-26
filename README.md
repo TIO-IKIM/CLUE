@@ -8,6 +8,10 @@ CLUE is a benchmark to evaluate the clinical language understanding of LLMs. It 
   <img src="images/CLUE_overview.png" width="300"/>
 </p>
 
+## Updates
+
+- [2024/06/25] We released an updated version of our [preprint](https://arxiv.org/abs/2404.04067) with an evaluation of 25 LLMs. Additionally, we included manual quality checks for MeDiSumQA. This refined dataset will be released on PhysioNet. The new results can also be found on the [project website](https://clue.ikim.nrw/).
+
 ## Contents
 - [Motivation](#motivation)
 - [Benchmark Compilation](#benchmark-compilation)
@@ -18,6 +22,19 @@ CLUE is a benchmark to evaluate the clinical language understanding of LLMs. It 
 ## Motivation
 
 Despite the advancements promised by biomedical LLMs for patient care, a significant gap exists in their evaluation, particularly concerning their application in real-world clinical settings. Existing assessments, focused on medical knowledge through constructed questions, fall short of capturing the complexity and diversity of clinical tasks. Additionally, the rapid pace at which LLMs evolve further complicates selecting the most appropriate models for healthcare applications. In response to these challenges, CLUE aims to offer a comprehensive and standardized framework for assessing the performance of both specialized biomedical and advanced general-domain LLMs in practical healthcare tasks.
+
+## Results
+
+<p align="center">
+  <img src="images/CLUE_results.png" width="100%"/>
+</p>
+
+**Top Performers**: General-domain models achieved the highest scores overall. Biomedical models generally performed lower, with some scoring below the baseline, indicating adaptation challenges.
+
+**Performance Differences**: High-performing models showed smaller score differences at level 1 compared to level 2 tasks, demonstrating the expressiveness of the new tasks MeDiSumQA and MeDiSumCode and the LongHealth dataset.
+
+**Effect of Biomedical Fine-Tuning**: Biomedical fine-tuning often led to performance declines, with many models experiencing significant drops. Instruction-tuned general-domain models consistently outperformed biomedical models. Improvements in some biomedical models were mainly in those based on earlier versions of general-domain models, indicating recent advancements may have already addressed some gaps fine-tuning aimed to fill. In conclusion, current biomedical training methods and datasets do not significantly enhance model performance in clinical settings. Future research should focus on novel training methods and specialized datasets to address these issues.
+
 
 ## Benchmark Compilation
 We introduce two novel tasks based on MIMIC IV discharge summaries. The following section describes how to generate these tasks and collect the existing ones.

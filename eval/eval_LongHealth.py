@@ -6,7 +6,7 @@ import random
 import numpy
 import re
 
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoConfig
 from huggingface_hub import InferenceClient
 from pathlib import Path
 
@@ -42,6 +42,8 @@ Please answer using the following format:
 For example, if the correct answer to a question is option C, and the text for C is 'Acute Bronchitis', your answer should be: 
 'The correct answer is C: Acute bronchitis.'
 """
+
+max_new_tokens = 50
 
 def compute_metrics(model_prediction, question, task3=False):
     for answer in question:
@@ -198,6 +200,7 @@ def main():
     # Tokenizer & Inference client
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, token=args.token)
     inference_client = InferenceClient(model=args.model_address)
+    model_config = AutoConfig.from_pretrained(args.model_name_or_path, trust_remote_code=True)
 
     # Load data
     with open(args.data_path, "r") as data_file:
@@ -278,25 +281,20 @@ def main():
                 else:
                     model_input = sys_prompt+"\n\n\n"+prompt
                     
-                    
+                stop_sequences = None
                 if "llama-3" in args.model_name_or_path.lower() or "llama3" in args.model_name_or_path.lower():
-                    output = inference_client.text_generation(
+                    stop_sequences=["<|start_header_id|>", "<|end_header_id|>", "<|eot_id|>", "<|im_end|>"]
+                output = inference_client.text_generation(
                     model_input,
-                    max_new_tokens=50,
+                    max_new_tokens=max_new_tokens,
+                    truncate=model_config.max_position_embeddings - max_new_tokens,
                     stream=False,
                     details=False,
-                    stop_sequences=["<|start_header_id|>", "<|end_header_id|>", "<|eot_id|>", "<|im_end|>"]
+                    stop_sequences=stop_sequences
                     )
-                else:
-                    output = inference_client.text_generation(
-                        model_input,
-                        max_new_tokens=50,
-                        stream=False,
-                        details=False
-                    )
-
+                if "phi" in args.model_name_or_path.lower() and " <|end|>" in output:
+                    output = output.split(" <|end|>")[0]
                 result, correct_answer = compute_metrics(output, question)
-
                 if result:
                     correct += 1
                 counted += 1
