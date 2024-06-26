@@ -10,7 +10,7 @@ CLUE is a benchmark to evaluate the clinical language understanding of LLMs. It 
 
 ## Updates
 
-- [2024/06/25] We released an updated version of our [preprint](https://arxiv.org/abs/2404.04067) with an evaluation of 25 LLMs. Additionally, we included manual quality checks for MeDiSumQA. This refined dataset will be released on PhysioNet.
+- [2024/06/25] We released an updated version of our [preprint](https://arxiv.org/abs/2404.04067) with an evaluation of 25 LLMs. Additionally, we included manual quality checks for MeDiSumQA. This refined dataset will be released on PhysioNet. The new results can also be found on the [project website](https://clue.ikim.nrw/).
 
 ## Contents
 - [Motivation](#motivation)
