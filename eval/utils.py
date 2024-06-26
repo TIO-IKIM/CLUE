@@ -21,7 +21,7 @@ def build_first_turn(sys_prompt, user_prompt, assistant_response, has_system, is
                 chat = [{"role" : "user", "content" : f"{sys_prompt}"}]
     else:
         if user_prompt and assistant_response:
-            chat = f"\n\n{user_prompt}\n\n{assistant_response}"
+            chat = f"{sys_prompt}\n\n{user_prompt}\n\n{assistant_response}"
     return chat
 
 def build_few_shot_examples(examples, sys_prompt, user_prompt_template, assistant_response_template, has_system, is_instruct):
@@ -59,7 +59,7 @@ def build_model_input(example, user_prompt_template, model_is_instruct, few_shot
     return model_input
 
 
-def get_UMLS_entities(doc): 
+def get_UMLS_entities(text): 
     global nlp, linker
     if nlp is None:
         import spacy
@@ -69,7 +69,7 @@ def get_UMLS_entities(doc):
         nlp.add_pipe("scispacy_linker", config={"resolve_abbreviations": True, "linker_name": "umls"})
         print("Loading scispacy UMLS Linker...")
         linker = nlp.get_pipe("scispacy_linker")
-
+    doc = nlp(text)
     entities = set()
     for entity in doc.ents:
         if entity._.kb_ents:

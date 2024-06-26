@@ -7,7 +7,7 @@ from pathlib import Path
 
 from tqdm import tqdm
 import pandas as pd
-from transformers import AutoTokenizer
+from transformers import AutoTokenizer, AutoConfig
 from huggingface_hub import InferenceClient
 from evaluate import load
 from bert_score import score as b_score
@@ -24,6 +24,7 @@ Question: {Question}"""
 
 assistant_response_template = """Answer: {Answer}"""
 
+max_new_tokens = 200
 
 def compute_metrics(model_output, label, rouge):
     predictions = [model_output]
@@ -77,13 +78,14 @@ def main():
     # Tokenizer & Inference client & metrics
     tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, token=args.token)
     inference_client = InferenceClient(model=args.model_address)
+    model_config = AutoConfig.from_pretrained(args.model_name_or_path, token=args.token, trust_remote_code=True)
 
     rouge = load("rouge")
 
     # Load data
     with open(args.data_path, "r") as data_file:
-        data = [json.loads(line) for line in data_file]
-
+        data = json.load(data_file)
+        
     random.seed(1)
     random.shuffle(data)
     
@@ -100,32 +102,26 @@ def main():
     for i, entry in enumerate((pbar := tqdm(data[args.num_few_shot_examples:]))):
 
         model_input = build_model_input(entry, user_prompt_template, args.model_is_instruct, chat, tokenizer)
-        model_input += assistant_response_template.format(Answer="")
+        model_input += assistant_response_template.format(answer="")
 
         if i == 0:
             # Print first model input to log format
             with open(log_path / "debug_model_input.txt", "w") as f_w:
                 f_w.write(model_input)
-
+     
+        stop_sequences = None
         if "llama-3" in args.model_name_or_path.lower() or "llama3" in args.model_name_or_path.lower():
-                    output = inference_client.text_generation(
+                    stop_sequences=["<|start_header_id|>", "<|end_header_id|>", "<|eot_id|>", "<|im_end|>"]
+        output = inference_client.text_generation(
                     model_input,
-                    max_new_tokens=200,
+                    max_new_tokens=max_new_tokens,
+                    truncate=model_config.max_position_embeddings - max_new_tokens,
                     stream=False,
                     details=False,
-                    stop_sequences=["<|start_header_id|>", "<|end_header_id|>", "<|eot_id|>", "<|im_end|>"],
-                    truncate=7992
-                    )
-                    if "<|im_end|>" in output:
-                        output = output.split("<|im_end|>")[0]
-        else:
-            output = inference_client.text_generation(
-                model_input,
-                max_new_tokens=200,
-                stream=False,
-                details=False
-            )
-
+                    stop_sequences=stop_sequences
+                    ).strip()
+        if "phi" in args.model_name_or_path.lower() and " <|end|>" in output:
+            output = output.split(" <|end|>")[0]
         # Update metric variables
         new_results = compute_metrics(output, entry["Answer"], rouge)
         update_results(results, new_results)

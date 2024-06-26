@@ -1,10 +1,4 @@
-fact_extraction_system_prompt = """You are a highly skilled assistant, specifically trained to assist medical professionals in interpreting and extracting key information from medical documents. Your primary responsibility will be to analyze discharge instructions from hospitals. You will receive such a discharge instruction. Your task is to extract all statements about the patient's stay in the hospital. Strictly limit the statements to information during the stay. Do not include follow-up decisions, discharge instructions or recommendations. In general do not include any statements that describe the future. Do not mention anonymized names recognisable by "___". Do not add anything that is not part of the input. List the statements line by line.
-
---------------BEGIN DISCHARGE INSTRUCTIONS--------------
-
-{example_ds}
-
---------------END DISCHARGE INSTRUCTIONS--------------"""
+fact_extraction_system_prompt = """You are a highly skilled assistant, specifically trained to assist medical professionals in interpreting and extracting key information from medical documents. Your primary responsibility will be to analyze discharge instructions from hospitals. You will receive such a discharge instruction. Your task is to extract all statements about the patient's stay in the hospital. Strictly limit the statements to information during the stay. Do not include follow-up decisions, discharge instructions or recommendations. In general do not include any statements that describe the future. Do not mention anonymized names recognisable by "___". Do not add anything that is not part of the input. List the statements line by line."""
 
 fact_extraction_user_template = """
 --------------BEGIN DISCHARGE INSTRUCTIONS--------------
@@ -14,8 +8,9 @@ fact_extraction_user_template = """
 fact_extraction_answer = """
 {statements}"""
 
-question_generation_system_prompt = """You are a helpful assistant that is specialized in medical topics. You will be given a list of the statements that contain information about a patient. For each statement formulate a question that is answered by the given statement. Make sure that the each statement gives a meaningful answer to the formulated question. Make sure that the question is not so specific that the answer is obvious. The overlap between the information in the question and the answer should be minimal.
+question_generation_system_prompt = """You are a helpful assistant that is specialized in medical topics. You will be given a list of the statements that contain information about a patient. For each statement formulate a question that is answered by the given statement. Make sure that the each statement gives a meaningful answer to the formulated question. Make sure that the question is not so specific that the answer is obvious. The overlap between the information in the question and the answer should be minimal."""
 
+question_generation_example_input = """
 Statements:
 - The thyroid panel is pending.
 - The fevers could have been caused by an infection in the patient's PICC line or blood.
@@ -25,7 +20,7 @@ Statements:
 - The patient was found to have occlusion of the left internal carotid artery and a stroke in the left middle cerebral artery distribution.
 - It is possible that the patient had a small stroke or that their blood pressure dropped too quickly when standing up."""
 
-question_generation_answer_example="""
+question_generation_example_output="""
 Question: Are there any pending test results for the patient?
 Answer: The thyroid panel is pending.
 Question: What were the possible sources of the patient's fevers?

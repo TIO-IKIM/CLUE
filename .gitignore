@@ -6,8 +6,6 @@ data/LongHealth
 data/MeQSum
 data/ProblemSummary
 data/MedNLI
-data/MeDiSumCode
-data/MeDiSumQA
 
 # Predictions can't be pushed as they contain inputs from private datasets
 predictions/
