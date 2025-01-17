@@ -1,19 +1,14 @@
 #!/bin/bash
 
 # Initialize variables
-model_address=""
-model_id=""
-model_has_system=false
-model_is_instruct=false
+model=""
 log_path=""
 token=""
 
 # Usage information
 usage() {
-    echo "Usage: $0 --model_address <local-model-address> --model_id <hf-model-id> [OPTIONS]"
+    echo "Usage: $0 --model <hf-model-id> [OPTIONS]"
     echo "Options:"
-    echo "  --model_has_system           Indicate if the model has a system prompt."
-    echo "  --model_is_instruct          Indicate if the model is instruction tuned."
     echo "  --log_path <path>            Specify the log folder path."
     echo "  --token <API token>          Specify the API token."
     exit 1
@@ -22,10 +17,7 @@ usage() {
 # Parse command line arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
-        --model_address) model_address="$2"; shift ;;
-        --model_id) model_id="$2"; shift ;;
-        --model_has_system) model_has_system=true ;;
-        --model_is_instruct) model_is_instruct=true ;;
+        --model) model="$2"; shift ;;
         --log_path) log_path="$2"; shift ;;
         --token) token="$2"; shift ;;
         *) echo "Unknown parameter: $1"; usage ;;
@@ -34,8 +26,8 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # Check mandatory parameters
-if [[ -z "$model_address" || -z "$model_id" ]]; then
-    echo "Error: --model_address and --model_id are required."
+if [[ -z "$model" ]]; then
+    echo "Error: --model is required."
     usage
 fi
 
@@ -43,11 +35,9 @@ fi
 for script in "scripts/launch_scripts"/*; do
     # Check if the script exists and is executable
     if [ -x "$script" ]; then
-        echo "Executing: $script with --model_id $model_id running at --model_address $model_address"
+        echo "Executing: $script with $model"
         # Prepare command with base required arguments
-        cmd="$script --model_address $model_address --model_id $model_id"
-        [[ $model_has_system == true ]] && cmd+=" --model_has_system"
-        [[ $model_is_instruct == true ]] && cmd+=" --model_is_instruct"
+        cmd="$script --model $model"
         [[ -n $log_path ]] && cmd+=" --log_path $log_path"
         [[ -n $token ]] && cmd+=" --token $token"
         # Execute the command

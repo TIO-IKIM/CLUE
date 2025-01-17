@@ -6,57 +6,31 @@ import icd10
 nlp = None
 Linker = None
 
-def build_first_turn(sys_prompt, user_prompt, assistant_response, has_system, is_instruct):
-    if is_instruct:
-        if has_system:
-            chat = [{"role": "system", "content": sys_prompt}]
-            if user_prompt and assistant_response:
-                chat.extend([{"role": "user", "content": user_prompt},
-                    {"role": "assistant", "content": assistant_response}])
-        else:
-            if user_prompt and assistant_response:
-                chat = [{"role" : "user", "content" : f"{sys_prompt}\n\n{user_prompt}"},
-                        {"role": "assistant", "content": assistant_response}]
-            else:
-                chat = [{"role" : "user", "content" : f"{sys_prompt}"}]
-    else:
-        if user_prompt and assistant_response:
-            chat = f"{sys_prompt}\n\n{user_prompt}\n\n{assistant_response}"
+def build_first_turn(sys_prompt, user_prompt, assistant_response):
+    chat = [{"role": "system", "content": sys_prompt}]
+    if user_prompt and assistant_response:
+        chat.extend([{"role": "user", "content": user_prompt},
+            {"role": "assistant", "content": assistant_response}])
     return chat
 
-def build_few_shot_examples(examples, sys_prompt, user_prompt_template, assistant_response_template, has_system, is_instruct):
+def build_few_shot_examples(examples, sys_prompt, user_prompt_template, assistant_response_template):
     for i, example in enumerate(examples):
             user_prompt = user_prompt_template.format(**example)
             assistant_response = assistant_response_template.format(**example)
             if i == 0:
-                chat = build_first_turn(sys_prompt, user_prompt, assistant_response, has_system, is_instruct)
+                chat = build_first_turn(sys_prompt, user_prompt, assistant_response)
             else:
-                if is_instruct:
-                    chat += [{"role": "user", "content": user_prompt},
-                            {"role": "assistant", "content": assistant_response}]
-                                
-                else:
-                    chat += f"\n\n{user_prompt}\n\n{assistant_response}"
+                chat += [{"role": "user", "content": user_prompt},
+                        {"role": "assistant", "content": assistant_response}]
     return chat
 
-def build_model_input(example, user_prompt_template, model_is_instruct, few_shot_chat, tokenizer):
+def build_model_input(example, user_prompt_template, few_shot_chat):
     user_prompt = user_prompt_template.format(**example)
-    if model_is_instruct:
-        chat = [{"role": "user", "content": f"{user_prompt}"}]
-        if few_shot_chat:
-            chat = few_shot_chat + chat
-        for msg in chat:
-            if isinstance(msg, list):
-                print(msg)
-        model_input = tokenizer.apply_chat_template(
-            chat, tokenize=False, add_generation_prompt=True)
+    chat = [{"role": "user", "content": f"{user_prompt}"}]
+    if few_shot_chat:
+        chat = few_shot_chat + chat
 
-    else:
-        model_input = f"\n\n{user_prompt}\n\n"
-        if few_shot_chat:
-            model_input = few_shot_chat + model_input
-
-    return model_input
+    return chat
 
 
 def get_UMLS_entities(text): 

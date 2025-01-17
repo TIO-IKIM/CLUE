@@ -1,0 +1,24 @@
+[project]
+name = "clue"
+version = "0.1.0"
+description = "CLUE: A Clinical Language Understanding Evaluation for LLMs"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "bert-score",
+    "en-core-sci-sm",
+    "evaluate>=0.4.3",
+    "hf-transfer>=0.1.9",
+    "icd10-cm>=0.0.5",
+    "openpyxl>=3.1.5",
+    "rouge-score>=0.1.2",
+    "scispacy==0.5.5",
+    "spacy==3.7.4",
+    "torch==2.5.1",
+    "tqdm>=4.67.1",
+    "vllm==0.6.6",
+]
+
+[tool.uv.sources]
+bert-score = { git = "https://github.com/dadaamin/bert_score.git" }
+en-core-sci-sm = { url = "https://s3-us-west-2.amazonaws.com/ai2-s2-scispacy/releases/v0.5.4/en_core_sci_sm-0.5.4.tar.gz" }
