@@ -3,14 +3,15 @@ import argparse
 import json
 from tqdm import tqdm
 import random
-import numpy
+import numpy as np
 import re
-
-from transformers import AutoTokenizer, AutoConfig
-from huggingface_hub import InferenceClient
 from pathlib import Path
+from vllm import LLM, SamplingParams
+from transformers import AutoTokenizer
 
-from utils import build_model_input
+from utils import build_first_turn
+
+
 
 sys_prompt = """
 You are a highly skilled and detail-oriented assistant, specifically trained to assist medical professionals in interpreting and extracting key information from medical documents. Your primary responsibility will be to analyze discharge letters from hospitals. When you receive one or more of these letters, you will be expected to carefully review the contents and accurately answer multiple-choice questions related to these documents. 
@@ -45,24 +46,29 @@ For example, if the correct answer to a question is option C, and the text for C
 
 max_new_tokens = 50
 
-def compute_metrics(model_prediction, question, task3=False):
-    for answer in question:
+def get_correct_answer(sample):
+    for answer in sample:
         if not answer.startswith("answer") or answer.endswith("location"):
             continue
-        if question["correct"] in question[answer]:
-            correct_answer = answer[-1].upper()
+        if sample["correct"] in sample[answer]:
+            return answer[-1].upper()
+def parse_model_choice(pred):
+    pred = re.findall(r"The correct answer is (\w):", pred)
+    if pred:
+        return pred[0]
+    return ""
 
-    model_choice = re.findall(r"The correct answer is (\w):", model_prediction)
+def compute_metrics(model_prediction, correct_answer, task3=False):
+    model_choice = parse_model_choice(model_prediction)
 
     # Accuracy
-    if model_choice == []: 
-        return False, correct_answer
-    if model_choice[0] != correct_answer and not task3:
-        return False, correct_answer
+    if not model_choice: 
+        return False
+    if model_choice != correct_answer and not task3:
+        return False
     if task3:
-        return model_choice[0] == "F", "Question cannot be answered with provided documents"
-    else:
-        return True, correct_answer
+        return model_choice == "F"
+    return True
 
 def create_prompt(
     answer_docs: dict,
@@ -148,7 +154,7 @@ def create_prompt(
 
     # calculate relative position of answers in text
     # only returns an approximate number for simplictiy
-    total_len_docs = numpy.sum(doc_lengths)
+    total_len_docs = np.sum(doc_lengths)
     start = 0
     answer_location = {}
     for length, type in zip(doc_lengths, doc_type):
@@ -187,20 +193,13 @@ def sample_distractions(patien_id: str, benchmark: dict, n: int = 4):
 def main():
 
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument("--model_address", type=str)
-    argument_parser.add_argument("--model_name_or_path", type=str)
-    argument_parser.add_argument("--model_has_system", action='store_true')
-    argument_parser.add_argument("--model_is_instruct", action='store_true')
+    argument_parser.add_argument("--model", type=str)
+    argument_parser.add_argument("--max_len", type=int,)
     argument_parser.add_argument("--data_path", type=str)
     argument_parser.add_argument("--log_path", type=str)
-    argument_parser.add_argument("--max_len", type=str)
     argument_parser.add_argument("--token", type=str)
     args = argument_parser.parse_args()
 
-    # Tokenizer & Inference client
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, token=args.token)
-    inference_client = InferenceClient(model=args.model_address)
-    model_config = AutoConfig.from_pretrained(args.model_name_or_path, trust_remote_code=True)
 
     # Load data
     with open(args.data_path, "r") as data_file:
@@ -225,22 +224,26 @@ def main():
 
     # No few-shot examples for this experiment, as it relies on very long
     # contexts which don't allow for few shot
+
+    llm = LLM(args.model, download_dir="./cache")
+    sampling_params = SamplingParams(max_tokens=max_new_tokens)
+
+    tokenizer = AutoTokenizer.from_pretrained(args.model, token=args.token)
+
+    max_context_len = llm.llm_engine.model_config.max_model_len
     
     # TASK 1
     results = {}
-    save_task_1 = []
+    model_inputs = []
+    ground_truths = []
+    questions = []
     
     correct = 0
     counted = 0
         
-    for idx, patient in (pbar := tqdm(data.items(), position=0)):
+    for idx, patient in data.items():
         patient_results = {}
-        for i, question in tqdm(
-            enumerate(patient["questions"]),
-            position=1,
-            leave=False,
-            total=len(patient["questions"]),
-        ):
+        for i, question in enumerate(patient["questions"]):
 
             if patient_results.get(f"question_{i}"):
                 continue
@@ -261,69 +264,49 @@ def main():
                     answer_docs,
                     non_answer_docs,
                     question,
-                    max_len=int(args.max_len) - len(tokenizer.encode(sys_prompt)),
+                    max_len=args.max_len - len(tokenizer.encode(sys_prompt)),
                     tokenizer=tokenizer,
                 )
 
-                if args.model_is_instruct:
-                    if not args.model_has_system:
-                        model_input = tokenizer.apply_chat_template(
-                            [{"role": "user", "content": sys_prompt+prompt}],
-                            tokenize = False, add_generation_prompt=True
-                        )
-                    else:
-                        model_input = tokenizer.apply_chat_template(
-                            [{"role" : "system", "content" : sys_prompt}, 
-                             {"role" : "user", "content" : prompt}],
-                            tokenize=False, 
-                            add_generation_prompt=True
-                        )
-                else:
-                    model_input = sys_prompt+"\n\n\n"+prompt
-                    
-                stop_sequences = None
-                if "llama-3" in args.model_name_or_path.lower() or "llama3" in args.model_name_or_path.lower():
-                    stop_sequences=["<|start_header_id|>", "<|end_header_id|>", "<|eot_id|>", "<|im_end|>"]
-                output = inference_client.text_generation(
-                    model_input,
-                    max_new_tokens=max_new_tokens,
-                    truncate=model_config.max_position_embeddings - max_new_tokens,
-                    stream=False,
-                    details=False,
-                    stop_sequences=stop_sequences
-                    )
-                if "phi" in args.model_name_or_path.lower() and " <|end|>" in output:
-                    output = output.split(" <|end|>")[0]
-                result, correct_answer = compute_metrics(output, question)
-                if result:
-                    correct += 1
-                counted += 1
-                
-            pbar.set_description(f"Average score Task 1: {(correct/counted)*100:.2f}")
+                model_inputs.append([
+                    {"role" : "system", "content" : sys_prompt}, 
+                    {"role" : "user", "content" : prompt},
+                ])
 
-            with open(log_path / "results_task_1.json", "a") as results_file:
-                json.dump({"correct" : correct_answer, "prediction" : output, "accuracy" : (correct/counted)*100}, results_file)
-                results_file.write("\n")
-        
-    results["Task1_Accuracy"] = (correct/counted)*100
-    # TASK 2
-    eval_results_task_2 = []
-    eval_results_task_3 = []
-    correct_task_2 = 0
-    correct_task_3 = 0
-    counted_task_2 = 0
-    counted_task_3 = 0
+                ground_truths.append(get_correct_answer(question))
+                questions.append(question)
+              
+    model_predictions = llm.chat(messages=model_inputs[:10], sampling_params=sampling_params)
+    scores = [compute_metrics(pred.outputs[0].text, gt) for pred, gt in zip(model_predictions, ground_truths)]
 
-    for patient_id, patient in (pbar := tqdm(data.items(), position=0)):
+    for i, (question, gt, pred) in enumerate(zip(questions, ground_truths, model_predictions)):
+        pred = parse_model_choice(pred.outputs[0].text)
+        log_dict = {
+            "Question": question["question"],
+            "Options": "\n".join([label.upper() + ": " + question[f"answer_{label}"] for label in "abcde"]),
+            "Model Answer": pred,
+            "Ground Truth Answer": gt,
+            "Correct": pred == gt,
+        }
+        with open(log_path / "predictions_task1.json", "a") as out_file:
+            json.dump(log_dict, out_file)
+            out_file.write("\n")
+
+    results["Task1_Accuracy"] = (np.sum(scores) / len(scores))*100
+    # TASKs 2,3
+    model_inputs_task2 = []
+    ground_truths_task2 = []
+    questions_task2 = []
+    model_inputs_task3 = []
+    ground_truths_task3 = []
+    questions_task3 = []
+    
+
+    for patient_id, patient in data.items():
 
         patient_results = {}
         
-        for i, question in tqdm(
-            enumerate(patient["questions"]),
-            position=1,
-            leave=False,
-            total=len(patient["questions"]),
-        ):
+        for i, question in enumerate(patient["questions"]):
             if patient_results.get(f"question_{i}"):
                 continue
 
@@ -337,6 +320,7 @@ def main():
                     patient_results[f"question_{i}"][f"answer_{j}_correct"] = "Question cannot be answered with provided documents"
                     answer_docs = {}
                     task_context = "task_3"
+                    questions_task3.append(question)
                 else:
                     patient_results[f"question_{i}"][f"answer_{j}_correct"] = question["correct"]
                     answer_docs = {
@@ -344,60 +328,62 @@ def main():
                         for text_id in question["answer_location"]
                     }
                     task_context = "task_2"
+                    questions_task2.append(question)
 
                 prompt, answer_location = create_prompt(
                     answer_docs,
                     non_answer_docs,
                     question,
                     option_labels="abcdef",
-                    max_len=int(args.max_len) - len(tokenizer.encode(sys_prompt)),
+                    max_len=max_context_len - len(tokenizer.encode(sys_prompt)),
                     tokenizer=tokenizer,
                 )
 
-                if args.model_is_instruct:
-                    if not args.model_has_system:
-                        model_input = tokenizer.apply_chat_template(
-                            [{"role": "user", "content": sys_prompt+prompt}],
-                            tokenize=False, add_generation_prompt=True
-                        )
-                    else:
-                        model_input = tokenizer.apply_chat_template(
-                            [{"role": "system", "content": sys_prompt}, {"role": "user", "content": prompt}],
-                            tokenize=False, add_generation_prompt=True
-                        )
+                if task_context == "task_2":
+                    model_inputs_task2.append([
+                    {"role" : "system", "content" : sys_prompt}, 
+                    {"role" : "user", "content" : prompt},
+                    ])
+                    ground_truths_task2.append(get_correct_answer(question))
                 else:
-                    model_input = sys_prompt+"\n\n\n"+prompt
+                    model_inputs_task3.append([
+                    {"role" : "system", "content" : sys_prompt}, 
+                    {"role" : "user", "content" : prompt},
+                    ])
+                    ground_truths_task3.append("F")
 
-                output = inference_client.text_generation(
-                    model_input,
-                    max_new_tokens=50,
-                    stream=False,
-                    details=False
-                )
 
-                
+    model_predictions_task2 = llm.chat(messages=model_inputs_task2[:10], sampling_params=sampling_params)
+    scores_task2 = [compute_metrics(pred.outputs[0].text, gt) for pred, gt in zip(model_predictions_task2, ground_truths_task2)]
+    for i, (question, gt, pred) in enumerate(zip(questions_task2, ground_truths_task2, model_predictions_task2)):
+        pred = parse_model_choice(pred.outputs[0].text)
+        log_dict = {
+            "Question": question["question"],
+            "Options": "\n".join([label.upper() + ": " + question[f"answer_{label}"] for label in "abcde"]),
+            "Model Answer": pred,
+            "Ground Truth Answer": gt,
+            "Correct": pred == gt,
+        }
+        with open(log_path / "predictions_task2.json", "a") as out_file:
+            json.dump(log_dict, out_file)
+            out_file.write("\n")
+    results["Task2_Accuracy"] = (np.sum(scores_task2) / len(scores_task2)) * 100
 
-                if task_context == "task_3":
-                    result, correct_answer = compute_metrics(output, question, task3=True)
-                    if result:
-                        correct_task_3 += 1
-                    counted_task_3 += 1
-                    eval_results_task_3.append({"correct": correct_answer, "prediction": output, "accuracy": (correct_task_3 / counted_task_3) * 100})
-                    with open(log_path / "results_task_3.json", "a") as results_file_task_3:
-                        json.dump({"correct": correct_answer, "prediction": output, "accuracy": (correct_task_3 / counted_task_3) * 100}, results_file_task_3)
-                        results_file_task_3.write("\n")
-                else:
-                    result, correct_answer = compute_metrics(output, question, task3=False)
-                    if result:
-                        correct_task_2 += 1
-                    counted_task_2 += 1
-                    eval_results_task_2.append({"correct": correct_answer, "prediction": output, "accuracy": (correct_task_2 / counted_task_2) * 100})
-                    with open(log_path / "results_task_2.json", "a") as results_file_task_2:
-                        json.dump({"correct": correct_answer, "prediction": output, "accuracy": (correct_task_2 / counted_task_2) * 100}, results_file_task_2)
-                        results_file_task_2.write("\n")
-                    
-    results["Task2_Accuracy"] = (correct_task_2 / counted_task_2) * 100
-    results["Task3_Accuracy"] = (correct_task_3 / counted_task_3) * 100
+    model_predictions_task3 = llm.chat(messages=model_inputs_task3[:10], sampling_params=sampling_params)
+    scores_task3 = [compute_metrics(pred.outputs[0].text, gt) for pred, gt in zip(model_predictions_task3, ground_truths_task3)]
+    for i, (question, gt, pred) in enumerate(zip(questions_task3, ground_truths_task3, model_predictions_task3)):
+        pred = parse_model_choice(pred.outputs[0].text)
+        log_dict = {
+            "Question": question["question"],
+            "Options": "\n".join([label.upper() + ": " + question[f"answer_{label}"] for label in "abcdef"]),
+            "Model Answer": pred,
+            "Ground Truth Answer": gt,
+            "Correct": pred == gt,
+        }
+        with open(log_path / "predictions_task3.json", "a") as out_file:
+            json.dump(log_dict, out_file)
+            out_file.write("\n")
+    results["Task3_Accuracy"] = (np.sum(scores_task3) / len(scores_task3)) * 100
     
     with open(log_path / "results.json", "w") as f_w:
         json.dump(results, f_w)

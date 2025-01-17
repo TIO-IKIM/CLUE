@@ -9,7 +9,7 @@ CLUE is a benchmark to evaluate the clinical language understanding of LLMs. It 
 </p>
 
 ## Updates
-
+- [2025/01/17] The code base is now build on [uv](https://github.com/astral-sh/uv) and [vLLM](https://github.com/vllm-project/vllm) simplifying the setup considerably.
 - [2024/06/25] We released an updated version of our [preprint](https://arxiv.org/abs/2404.04067) with an evaluation of 25 LLMs. Additionally, we included manual quality checks for MeDiSumQA. This refined dataset will be released on PhysioNet. The new results can also be found on the [project website](https://clue.ikim.nrw/).
 
 ## Contents
@@ -111,25 +111,15 @@ Make sure you have access to the resources on physionet.
 ### Basic Usage
 
 ```bash
-./scripts/run_benchmark.sh --model_address <local-model-address> --model_id <hf-model-id> [OPTIONS]
+./scripts/run_clue.sh --model <hf-model-id> [OPTIONS]
 ```
 ### Arguments
 
-- --model_address <local-model-address>: Endpoint where the model is hosted.
-- --model_id <hf-model-id>: Identifier for the model registered on Hugging Face.
+- --model <hf-model-id>: Identifier for the model registered on Hugging Face.
+
 ### Options
-- --model_has_system: Indicates that the model's prompt template includes a section for system prompts.
-- --model_is_instruct: Marks the model as optimized for processing instructional prompts.
 - --log_path <path>: Specifies the directory for log files. Defaults to the model name if not provided.
 - --token <API token>: HF Hub API token required for authentication.
-
-
-### Example Command
-
-```bash
-./scripts/run_benchmark.sh --model_address http://0.0.0.0:8085 --model_id meta-llama/Meta-Llama-3-8B --model_has_system --model_is_instruct
-```
-
 
 ## Acknowledgement
 

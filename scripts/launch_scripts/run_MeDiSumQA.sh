@@ -6,17 +6,10 @@ dataset="data/MeDiSumQA/MeDiSumQA.json"
 prediction_path="predictions/MeDiSumQA"
 num_few_shot_examples=1
 
-# Default values for flags
-model_has_system=false
-model_is_instruct=false
-
 # Extract parameters using named flags
 while [[ "$#" -gt 0 ]]; do
     case "$1" in
-        --model_address) model_address="$2"; shift ;;
-        --model_id) model_id="$2"; shift ;;
-        --model_has_system) model_has_system=true ;;
-        --model_is_instruct) model_is_instruct=true ;;
+        --model) model="$2"; shift ;;
         --log_path) log_path="$2"; shift ;;
         --token) token="$2"; shift ;;
         *) echo "Unknown parameter: $1" ;;
@@ -25,12 +18,10 @@ while [[ "$#" -gt 0 ]]; do
 done
 
 # Paths and script specific parameters
-[[ -z "$log_path" ]] && log_path="$prediction_path/$(basename "$model_id")"
+[[ -z "$log_path" ]] && log_path="$prediction_path/$(basename "$model")"
 
 # Command construction
-cmd="python $eval_script --model_address $model_address --model_name_or_path $model_id"
-[[ $model_has_system == true ]] && cmd+=" --model_has_system"
-[[ $model_is_instruct == true ]] && cmd+=" --model_is_instruct"
+cmd="uv run $eval_script --model $model"
 cmd+=" --num_few_shot_examples $num_few_shot_examples --data_path $dataset --log_path $log_path"
 [[ -n $token ]] && cmd+=" --token $token"
 
