@@ -7,6 +7,7 @@ from bert_score import score as b_score
 from evaluate import load
 from vllm import LLM, SamplingParams
 import random
+from huggingface_hub import login
 
 from utils import build_few_shot_examples, build_first_turn, update_results, compute_average_results, build_model_input, compute_icd_f1, is_icd10_valid, parse_icd_codes
 
@@ -96,8 +97,6 @@ def main():
 
     model_predictions = llm.chat(messages=model_inputs, sampling_params=sampling_params)
     ground_truths = [sample[ground_truth_key] for sample in samples[args.num_few_shot_examples:]]
-
-    scores = compute_metrics(model_predictions, ground_truths, rouge)
 
     for i, (sample, pred) in enumerate(zip(samples[args.num_few_shot_examples:], model_predictions)):
         if i == 0:

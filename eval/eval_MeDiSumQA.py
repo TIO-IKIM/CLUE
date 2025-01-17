@@ -11,6 +11,7 @@ import pandas as pd
 from evaluate import load
 from bert_score import score as b_score
 from vllm import LLM, SamplingParams
+from huggingface_hub import login
 
 from utils import compute_UMLS_F1, build_few_shot_examples, build_first_turn, update_results, compute_average_results, build_model_input
 

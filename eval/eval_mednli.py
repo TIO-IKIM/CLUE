@@ -7,6 +7,7 @@ from pathlib import Path
 
 from tqdm import tqdm
 from vllm import LLM, SamplingParams
+from huggingface_hub import login
 
 from utils import build_few_shot_examples, build_model_input, update_results, compute_average_results
 
