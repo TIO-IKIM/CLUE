@@ -74,7 +74,7 @@ def main():
 
     # Load data
     with open(args.data_path, "r") as data_file:
-        data = json.load(data_file)[:10]
+        data = json.load(data_file)
         
         
     random.seed(1)

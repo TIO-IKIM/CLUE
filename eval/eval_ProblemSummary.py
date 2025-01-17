@@ -85,7 +85,7 @@ def main():
             data[i]["Summary"] = data[i]["Summary"].replace(";", ", ")
         
     random.seed(1)
-    random.shuffle(data[:10])
+    random.shuffle(data)
 
     # Create few shot examples
     chat = None

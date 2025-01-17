@@ -276,7 +276,7 @@ def main():
                 ground_truths.append(get_correct_answer(question))
                 questions.append(question)
               
-    model_predictions = llm.chat(messages=model_inputs[:10], sampling_params=sampling_params)
+    model_predictions = llm.chat(messages=model_inputs, sampling_params=sampling_params)
     scores = [compute_metrics(pred.outputs[0].text, gt) for pred, gt in zip(model_predictions, ground_truths)]
 
     for i, (question, gt, pred) in enumerate(zip(questions, ground_truths, model_predictions)):
@@ -353,7 +353,7 @@ def main():
                     ground_truths_task3.append("F")
 
 
-    model_predictions_task2 = llm.chat(messages=model_inputs_task2[:10], sampling_params=sampling_params)
+    model_predictions_task2 = llm.chat(messages=model_inputs_task2, sampling_params=sampling_params)
     scores_task2 = [compute_metrics(pred.outputs[0].text, gt) for pred, gt in zip(model_predictions_task2, ground_truths_task2)]
     for i, (question, gt, pred) in enumerate(zip(questions_task2, ground_truths_task2, model_predictions_task2)):
         pred = parse_model_choice(pred.outputs[0].text)
@@ -369,7 +369,7 @@ def main():
             out_file.write("\n")
     results["Task2_Accuracy"] = (np.sum(scores_task2) / len(scores_task2)) * 100
 
-    model_predictions_task3 = llm.chat(messages=model_inputs_task3[:10], sampling_params=sampling_params)
+    model_predictions_task3 = llm.chat(messages=model_inputs_task3, sampling_params=sampling_params)
     scores_task3 = [compute_metrics(pred.outputs[0].text, gt) for pred, gt in zip(model_predictions_task3, ground_truths_task3)]
     for i, (question, gt, pred) in enumerate(zip(questions_task3, ground_truths_task3, model_predictions_task3)):
         pred = parse_model_choice(pred.outputs[0].text)

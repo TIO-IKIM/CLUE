@@ -71,7 +71,7 @@ def main():
 
     # Load data
     df = pd.read_excel(args.data_path)
-    data = df.to_dict('records')[:10]
+    data = df.to_dict('records')
         
     random.seed(1)
     random.shuffle(data)
