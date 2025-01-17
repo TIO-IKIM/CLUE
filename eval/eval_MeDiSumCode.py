@@ -4,9 +4,9 @@ from tqdm import tqdm
 import re
 from pathlib import Path
 from bert_score import score as b_score
-from transformers import AutoTokenizer, AutoConfig
-from huggingface_hub import InferenceClient
 from evaluate import load
+from vllm import LLM, SamplingParams
+import random
 
 from utils import build_few_shot_examples, build_first_turn, update_results, compute_average_results, build_model_input, compute_icd_f1, is_icd10_valid, parse_icd_codes
 
@@ -22,7 +22,7 @@ assistant_response_start = "ICD-10 Codes: "
 assistant_response_template =  assistant_response_start + """{codes}"""
 
 ground_truth_key = "codes"
-max_new_tokens = 200
+max_tokens = 512
 
 
 def compute_metrics(predictions, ground_truth):
@@ -44,11 +44,8 @@ def compute_metrics(predictions, ground_truth):
 def main():
 
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument("--model_address", type=str)
-    argument_parser.add_argument("--model_name_or_path", type=str)
-    argument_parser.add_argument("--model_has_system", action='store_true')
-    argument_parser.add_argument("--model_is_instruct", action='store_true')
-    argument_parser.add_argument("--num_few_shot_examples", type=int)
+    argument_parser.add_argument("--model", type=str, default="microsoft/phi-4")
+    argument_parser.add_argument("--num_few_shot_examples", type=int, default=1)
     argument_parser.add_argument("--data_path", type=str)
     argument_parser.add_argument("--log_path", type=str)
     argument_parser.add_argument("--token", type=str)
@@ -66,16 +63,17 @@ def main():
     if (log_path / "predictions.json").exists():
         (log_path / "predictions.json").unlink()
 
-    # Tokenizer & Inference client & metrics
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name_or_path, token=args.token)
-    inference_client = InferenceClient(model=args.model_address)
-    model_config = AutoConfig.from_pretrained(args.model_name_or_path, token=args.token, trust_remote_code=True)
+    llm = LLM(args.model, download_dir="./cache")
+    sampling_params = SamplingParams(max_tokens=max_tokens)
 
     # Load data
     with open(args.data_path, "r") as data_file:
-        data = json.load(data_file)
+        data = json.load(data_file)[:10]
         
     samples = []
+
+    random.seed(1)
+    random.shuffle(data)
     
     for entry in data:
         samples.append({
@@ -86,53 +84,34 @@ def main():
     chat = None
     if args.num_few_shot_examples > 0:
         chat = build_few_shot_examples(
-            samples[:args.num_few_shot_examples], sys_prompt, user_prompt_template, assistant_response_template, args.model_has_system, args.model_is_instruct)
+            samples[:args.num_few_shot_examples], sys_prompt, user_prompt_template, assistant_response_template)
     else:
-        chat = build_first_turn(sys_prompt, user_prompt=None, assistant_response=None, has_system=args.model_has_system, is_instruct=args.model_is_instruct)
+        chat = build_first_turn(sys_prompt, user_prompt=None, assistant_response=None)
 
     results = {}
-    for i, entry in enumerate((pbar := tqdm(samples[args.num_few_shot_examples:]))):
-        model_input = build_model_input(entry, user_prompt_template, args.model_is_instruct, chat, tokenizer)
-        model_input += assistant_response_template.format(**{ground_truth_key: ""})
-        
+    model_inputs = [build_model_input(entry, user_prompt_template, chat) for entry in samples[args.num_few_shot_examples:]]
+
+    model_predictions = llm.chat(messages=model_inputs, sampling_params=sampling_params)
+    ground_truths = [sample[ground_truth_key] for sample in samples[args.num_few_shot_examples:]]
+
+    scores = compute_metrics(model_predictions, ground_truths, rouge)
+
+    for i, (sample, pred) in enumerate(zip(samples[args.num_few_shot_examples:], model_predictions)):
         if i == 0:
             # Print first model input to log format
             with open(log_path / "debug_model_input.txt", "w") as f_w:
-                f_w.write(model_input)
+                f_w.write(pred.prompt)
 
-        ground_truth = entry[ground_truth_key]
-
-        stop_sequences = None
-        if "llama-3" in args.model_name_or_path.lower() or "llama3" in args.model_name_or_path.lower():
-                    stop_sequences=["<|start_header_id|>", "<|end_header_id|>", "<|eot_id|>", "<|im_end|>"]
-        output = inference_client.text_generation(
-                    model_input,
-                    max_new_tokens=max_new_tokens,
-                    truncate=model_config.max_position_embeddings - max_new_tokens,
-                    stream=False,
-                    details=False,
-                    stop_sequences=stop_sequences
-                    )
-        if "phi" in args.model_name_or_path.lower() and " <|end|>" in output:
-            output = output.split(" <|end|>")[0]
-        
-        # Cut off new self-prompting
-        output = re.sub(
-            r"(You are an AI.*)|(\[INST\].*)|((<\|user\|>).*)", "", output)
-        
-        output_codes = parse_icd_codes(output)
+        pred = pred.outputs[0].text
+        ground_truth = sample[ground_truth_key]
+        output_codes = parse_icd_codes(pred)
 
         # Update metric variables
         new_results = compute_metrics(output_codes, ground_truth)
         update_results(results, new_results)
         average_results = compute_average_results(results)
         
-        # Print metrics
-        print_metrics = ["ICD EM F1", "ICD AP F1", "VALID CODES"]
-        pbar.set_description(
-            ", ".join(f"Average {k}: {v:.2f}" for k, v in average_results.items() if k in print_metrics))
-
-        new_results["Model Answer"] = output
+        new_results["Model Answer"] = pred
         new_results["Ground Truth Answer"] = ground_truth
         with open(log_path / "predictions.json", "a") as out_file:
             json.dump(new_results, out_file)
