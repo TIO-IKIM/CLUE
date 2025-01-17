@@ -55,6 +55,9 @@ def main():
     argument_parser.add_argument("--token", type=str)
     args = argument_parser.parse_args()
 
+    if args.token:
+        login(args.token)
+
     log_path = Path(args.log_path)
     if not log_path.exists():
         log_path.mkdir(parents=True, exist_ok=True)

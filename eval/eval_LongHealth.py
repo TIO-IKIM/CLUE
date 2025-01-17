@@ -8,6 +8,7 @@ import re
 from pathlib import Path
 from vllm import LLM, SamplingParams
 from transformers import AutoTokenizer
+from huggingface_hub import login
 
 from utils import build_first_turn
 
@@ -194,12 +195,13 @@ def main():
 
     argument_parser = argparse.ArgumentParser()
     argument_parser.add_argument("--model", type=str)
-    argument_parser.add_argument("--max_len", type=int,)
+    argument_parser.add_argument("--max_len", type=int)
     argument_parser.add_argument("--data_path", type=str)
     argument_parser.add_argument("--log_path", type=str)
     argument_parser.add_argument("--token", type=str)
     args = argument_parser.parse_args()
-
+    if args.token:
+        login(args.token)
 
     # Load data
     with open(args.data_path, "r") as data_file:
